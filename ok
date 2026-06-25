@@ -1,0 +1,30 @@
+import pandas as pd
+import numpy as np
+
+
+def compute_forward_rates(spot_curves: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calcola i tassi forward "inception forward at opening date" partendo
+    da curve spot (indice = nodi 1..100, colonne = anni, valori = tassi spot decimali).
+
+    Formula per ogni nodo t:
+        f_t = [ (1+r_t)^t / (1+r_(t-1))^(t-1) ] - 1
+    Per t=1 il forward coincide con lo spot (nessun nodo precedente).
+    """
+    spot = spot_curves.sort_index()
+    t = spot.index.to_numpy(dtype=float).reshape(-1, 1)
+
+    growth_factors = (1 + spot.to_numpy()) ** t
+    growth_factors_prev = np.vstack([
+        np.ones((1, growth_factors.shape[1])),
+        growth_factors[:-1, :]
+    ])
+    dt = np.diff(np.vstack([[0], t]), axis=0)
+
+    forward_rates = (growth_factors / growth_factors_prev) ** (1 / dt) - 1
+
+    return pd.DataFrame(forward_rates, index=spot.index, columns=spot.columns)
+
+
+# Utilizzo:
+# forward_curves = compute_forward_rates(spot_curves)
